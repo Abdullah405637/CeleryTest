@@ -1,0 +1,55 @@
+version: '3.3'
+
+services:
+  db:
+    image: postgres:9.6.5
+  web:
+    build: . #path to the root project folder
+    command: python manage.py runserver 0.0.0.0:8000
+    volumes:
+      - .:/code
+    ports:
+      - 8000:8000 # sets the port that maps to internal port in docker container
+    environment:
+      - DEBUG=1
+      - SECRET_KEY=dbaa1_i7%*3r9-=z-+_mz4r-!qeed@(-a_r(g@k8jo8y3r27%m
+      - DJANGO_ALLOWED_HOSTS=localhost 127.0.0.1 [::1]
+      - CELERY_BROKER=redis://redis:6379/0
+      - CELERY_BACKEND=redis://redis:6379/0
+    depends_on:
+      - redis
+
+  celery:
+    build: .
+    command: celery worker --app=core --loglevel=info --logfile=logs/celery.log # Command used to start the Celery worker in the Docker container
+    volumes:
+      - .:/code
+    environment:
+      - DEBUG=1
+      - SECRET_KEY=dbaa1_i7%*3r9-=z-+_mz4r-!qeed@(-a_r(g@k8jo8y3r27%m
+      - DJANGO_ALLOWED_HOSTS=localhost 127.0.0.1 [::1]
+      - CELERY_BROKER=redis://redis:6379/0
+      - CELERY_BACKEND=redis://redis:6379/0
+      # depends on show that celery worker service requires the web service and the redis service to run
+    depends_on: 
+      - web
+      - redis
+
+  redis:
+    image: redis:6-alpine
+  
+  celeryworker:
+    image: celeryworker
+    ports: []
+    command: /start-celeryworker
+
+  celerybeat:
+    image: celerybeat
+    ports: []
+    command: /start-celerybeat
+
+  flower:
+    image: flower
+    ports:
+      - "5545:5545"
+    command: /start-flower
